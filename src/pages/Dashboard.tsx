@@ -31,7 +31,7 @@ import {
   YAxis,
 } from "recharts";
 import { api } from "../api";
-import { exportRows, type ExportFormat, type ExportRow } from "../export";
+import { exportRows, selectExportFields, type ExportFormat, type ExportRow } from "../export";
 import type { DashboardData, RecordItem } from "../types";
 const fmt = (n: number) => `${n.toFixed(1).replace(".", ",")}%`;
 const isApproved = (v: string | null | undefined) =>
@@ -263,7 +263,9 @@ export default function Dashboard({
     ),
     [absentModal, setAbsentModal] = useState(false),
     [exporting, setExporting] = useState<ExportFormat | null>(null),
-    [exportError, setExportError] = useState("");
+    [exportError, setExportError] = useState(""),
+    [exportRequest, setExportRequest] = useState<ExportFormat | null>(null),
+    [selectedFields, setSelectedFields] = useState<string[]>([]);
   const dashboardRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     api<DashboardData>("/dashboard")
@@ -438,18 +440,30 @@ export default function Dashboard({
   const exportData = isGap
       ? calc.candidates.map(gapExportRow)
       : filteredBase.map(recordExportRow),
+    availableFields = exportData.length ? Object.keys(exportData[0]) : [],
     exportName = `certifica-vale-${mode}-${new Date().toISOString().slice(0, 10)}`;
+  const recommendedPdfFields = isGap
+    ? ["Matrícula", "Nome", "Gerência", "Nota teórica (%)", "Nota prática (%)", "GAP (p.p.)", "Status"]
+    : ["Matrícula", "Nome", "Gerência", "Prova", "Nota (%)", "Resultado"];
+  function requestExport(format: ExportFormat) {
+    setExportError("");
+    setSelectedFields(format === "pdf" ? recommendedPdfFields.filter(field => availableFields.includes(field)) : availableFields);
+    setExportRequest(format);
+  }
   async function handleExport(format: ExportFormat) {
+    if (!selectedFields.length) return;
     setExporting(format);
     setExportError("");
+    setExportRequest(null);
     try {
       const charts = format === "pdf"
         ? Array.from(dashboardRef.current?.querySelectorAll<HTMLElement>("[data-export-chart]") ?? []).map(element => ({
             element,
             title: element.dataset.exportTitle || "Gráfico",
+            wide: element.dataset.exportWide === "true",
           }))
         : [];
-      await exportRows(format, exportData, title, exportName, charts);
+      await exportRows(format, selectExportFields(exportData, selectedFields), title, exportName, charts);
     } catch (exportFailure) {
       setExportError((exportFailure as Error).message);
     } finally {
@@ -471,9 +485,9 @@ export default function Dashboard({
         <div className="page-actions">
           <div className="export-actions" aria-label="Exportar dados filtrados">
             <span><Download />Exportar</span>
-            <button onClick={() => handleExport("csv")} disabled={Boolean(exporting) || !exportData.length}>CSV</button>
-            <button onClick={() => handleExport("xlsx")} disabled={Boolean(exporting) || !exportData.length}><FileSpreadsheet />Excel</button>
-            <button onClick={() => handleExport("pdf")} disabled={Boolean(exporting) || !exportData.length}><FileText />PDF</button>
+            <button onClick={() => requestExport("csv")} disabled={Boolean(exporting) || !exportData.length}>CSV</button>
+            <button onClick={() => requestExport("xlsx")} disabled={Boolean(exporting) || !exportData.length}><FileSpreadsheet />Excel</button>
+            <button onClick={() => requestExport("pdf")} disabled={Boolean(exporting) || !exportData.length}><FileText />PDF</button>
           </div>
           <button
             className={`filter-toggle ${active ? "active" : ""}`}
@@ -986,6 +1000,24 @@ export default function Dashboard({
           onClose={() => setAbsentModal(false)}
         />
       )}
+      {exportRequest && (
+        <div className="modal-backdrop" role="dialog" aria-modal="true" onMouseDown={event => { if (event.target === event.currentTarget) setExportRequest(null); }}>
+          <div className="modal-card export-fields-modal">
+            <h2>Selecionar campos</h2>
+            <p>Escolha as colunas que serão incluídas no arquivo {exportRequest === "xlsx" ? "Excel" : exportRequest.toUpperCase()}.</p>
+            <div className="field-selection-actions">
+              <button type="button" onClick={() => setSelectedFields(availableFields)}>Selecionar todos</button>
+              <button type="button" onClick={() => setSelectedFields([])}>Limpar seleção</button>
+              <span>{selectedFields.length} de {availableFields.length} campos</span>
+            </div>
+            <div className="field-selection-grid">
+              {availableFields.map(field => <label key={field}><input type="checkbox" checked={selectedFields.includes(field)} onChange={event => setSelectedFields(current => event.target.checked ? [...current, field] : current.filter(item => item !== field))}/><span>{field}</span></label>)}
+            </div>
+            {exportRequest === "pdf" && <div className="info export-info">Os gráficos serão incluídos antes da tabela. O ranking longo será dividido em páginas.</div>}
+            <div className="modal-actions"><button type="button" onClick={() => setExportRequest(null)}>Cancelar</button><button className="primary" disabled={!selectedFields.length} onClick={() => handleExport(exportRequest)}>Exportar {exportRequest === "xlsx" ? "Excel" : exportRequest.toUpperCase()}</button></div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -1170,7 +1202,7 @@ function ParticipantRanking({
   );
   const width = Math.max(1100, ranked.length * 62);
   return (
-    <section className="panel ranking-panel" data-export-chart data-export-title="Notas por participante">
+    <section className="panel ranking-panel">
       <div className="panel-title">
         <div>
           <h3>Notas por participante</h3>
@@ -1178,7 +1210,7 @@ function ParticipantRanking({
         </div>
       </div>
       <div className="ranking-scroll">
-        <div style={{ width }}>
+        <div style={{ width }} data-export-chart data-export-title="Notas por participante" data-export-wide="true">
           <BarChart
             width={width}
             height={mode === "gap" ? 570 : 430}

@@ -1,10 +1,14 @@
 export type ExportValue = string | number | null | undefined;
 export type ExportRow = Record<string, ExportValue>;
 export type ExportFormat = 'csv' | 'xlsx' | 'pdf';
-export type PdfChart = { element: HTMLElement; title: string };
+export type PdfChart = { element: HTMLElement; title: string; wide?: boolean };
 
 export function pdfPagePlan(chartCount: number) {
   return [...Array.from({ length: chartCount }, (_, index) => `chart-${index + 1}`), 'data'];
+}
+
+export function selectExportFields(rows: ExportRow[], fields: string[]) {
+  return rows.map(row => Object.fromEntries(fields.map(field => [field, row[field]])) as ExportRow);
 }
 
 const text = (value: ExportValue) => value === null || value === undefined ? '' : String(value);
@@ -53,8 +57,8 @@ export async function exportRows(format: ExportFormat, rows: ExportRow[], title:
   }
   const [{ jsPDF }, { default: autoTable }, { default: html2canvas }] = await Promise.all([import('jspdf'), import('jspdf-autotable'), import('html2canvas')]);
   const document = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+  let hasChartPage = false;
   for (let index = 0; index < pdfCharts.length; index += 1) {
-    if (index > 0) document.addPage('a4', 'landscape');
     const chart = pdfCharts[index];
     const canvas = await html2canvas(chart.element, {
       backgroundColor: '#ffffff',
@@ -62,17 +66,27 @@ export async function exportRows(format: ExportFormat, rows: ExportRow[], title:
       useCORS: true,
       logging: false,
     });
-    const maxWidth = 281;
-    const maxHeight = 181;
-    const ratio = Math.min(maxWidth / canvas.width, maxHeight / canvas.height);
-    const width = canvas.width * ratio;
-    const height = canvas.height * ratio;
-    document.setFontSize(13);
-    document.setTextColor(7, 46, 97);
-    document.text(chart.title, 10, 11);
-    document.addImage(canvas.toDataURL('image/jpeg', 0.92), 'JPEG', 10 + (maxWidth - width) / 2, 17, width, height, undefined, 'FAST');
+    const maxWidth = 281, maxHeight = 181;
+    const sliceWidth = chart.wide ? Math.min(canvas.width, Math.floor(canvas.height * maxWidth / maxHeight)) : canvas.width;
+    const slices = Math.ceil(canvas.width / sliceWidth);
+    for (let sliceIndex = 0; sliceIndex < slices; sliceIndex += 1) {
+      if (hasChartPage) document.addPage('a4', 'landscape');
+      hasChartPage = true;
+      const sourceX = sliceIndex * sliceWidth;
+      const currentWidth = Math.min(sliceWidth, canvas.width - sourceX);
+      const pageCanvas = globalThis.document.createElement('canvas');
+      pageCanvas.width = currentWidth;
+      pageCanvas.height = canvas.height;
+      pageCanvas.getContext('2d')?.drawImage(canvas, sourceX, 0, currentWidth, canvas.height, 0, 0, currentWidth, canvas.height);
+      const ratio = Math.min(maxWidth / pageCanvas.width, maxHeight / pageCanvas.height);
+      const width = pageCanvas.width * ratio, height = pageCanvas.height * ratio;
+      document.setFontSize(13);
+      document.setTextColor(7, 46, 97);
+      document.text(`${chart.title}${slices > 1 ? ` (${sliceIndex + 1}/${slices})` : ''}`, 10, 11);
+      document.addImage(pageCanvas.toDataURL('image/jpeg', 0.92), 'JPEG', 10 + (maxWidth - width) / 2, 17, width, height, undefined, 'FAST');
+    }
   }
-  if (pdfCharts.length) document.addPage('a4', 'landscape');
+  if (hasChartPage) document.addPage('a4', 'landscape');
   document.setFontSize(15);
   document.setTextColor(7, 46, 97);
   document.text(title, 10, 11);
