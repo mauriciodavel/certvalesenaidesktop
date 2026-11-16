@@ -1,7 +1,7 @@
 {
   "name": "certifica-vale-desktop",
   "productName": "Certifica Vale",
-  "version": "1.0.1",
+  "version": "1.1.0",
   "private": true,
   "type": "module",
   "main": "electron/main.cjs",
