@@ -1,29 +1,22 @@
 # Certifica Vale Desktop
 
-Versão portável para Windows do Certifica Vale. A interface React e a API Express são executadas localmente pelo Electron, enquanto os dados permanecem no TiDB remoto.
+Cliente Electron do Certifica Vale. A interface é executada localmente e consome exclusivamente a API HTTPS publicada em `https://certvalesenaidesktopapi.vercel.app`.
 
-## Requisitos para desenvolvimento
+## Arquitetura de segurança
 
-- Node.js e npm
-- Acesso de rede ao TiDB
-- Arquivo `desktop-config.env` criado a partir de `desktop-config.example.env`
-
-O arquivo de configuração contém credenciais e é ignorado pelo Git.
+- O instalador não contém credenciais do TiDB nem `JWT_SECRET`.
+- Nenhum servidor ou porta local é aberto.
+- O token de acesso é criptografado pelo `safeStorage` do Electron, protegido pelo Windows.
+- A configuração legada `%APPDATA%\Certifica Vale\config.env` é removida automaticamente ao iniciar a versão 2.
+- A interface usa o protocolo interno seguro `certifica://app`.
 
 ## Comandos
 
-- `npm run typecheck`: valida TypeScript do frontend e backend.
-- `npm run desktop:dev`: compila e abre o aplicativo Electron.
-- `npm run desktop:dist`: gera o instalador Windows em `release/`.
+- `npm run typecheck`: valida o TypeScript.
+- `npm test`: executa os testes.
+- `npm run desktop:dev`: compila e inicia o Electron.
+- `npm run desktop:dist`: gera o instalador Windows em `release-secure/`.
 
 ## Instalação
 
-O instalador NSIS é configurado com `perMachine: false` e `requestedExecutionLevel: asInvoker`. A instalação ocorre no perfil do usuário e não solicita permissão de administrador.
-
-Durante a geração, `desktop-config.env` é incluído como recurso do instalador. Na primeira execução, uma cópia é criada em `%APPDATA%\Certifica Vale\config.env`.
-
-## Segurança
-
-Uma aplicação distribuída que se conecta diretamente ao TiDB precisa transportar uma credencial de banco. Mesmo fora do código-fonte, essa credencial pode ser extraída por um usuário com acesso ao computador. Use no TiDB um usuário exclusivo, com privilégios mínimos, restrição de rede quando possível e rotação periódica da senha.
-
-Para eliminar a distribuição da credencial, seria necessário manter uma API remota entre o aplicativo e o banco.
+O instalador NSIS utiliza o perfil do usuário (`perMachine: false`) e não requer elevação administrativa. Como não existe servidor HTTP local, o aplicativo não precisa de liberação de firewall para conexões de entrada.

@@ -6,6 +6,7 @@ dist-server/
 desktop-config.env
 build-resources/
 release/
+release-secure/
 *.log
 uploads/
 .DS_Store
