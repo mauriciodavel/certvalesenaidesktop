@@ -1,0 +1,19 @@
+/* Ajustes para a janela redimensionável do aplicativo desktop. */
+@media (max-width: 800px) {
+  .app-shell > aside { padding: 16px; }
+  .app-shell nav { margin-top: 14px; padding-bottom: 6px; }
+  .app-shell nav a { flex: 0 0 auto; }
+  .user-box { display: grid; margin-top: 12px; padding-top: 12px; }
+  .dashboard { padding: 20px 16px 36px; }
+  .page-header h1 { font-size: 25px; }
+}
+@media (max-width: 520px) {
+  .brand { padding: 0; }
+  .app-shell nav a { padding: 10px; font-size: 12px; }
+  .app-shell nav a svg { width: 17px; height: 17px; }
+  .panel { border-radius: 10px; }
+  .login-panel { padding: 24px 20px; }
+  .login-logo { margin-bottom: 36px; }
+  .table-panel { max-width: calc(100vw - 32px); }
+  .modal-card { max-height: calc(100vh - 32px); overflow: auto; }
+}

@@ -3,6 +3,9 @@ dist/
 dist-server/
 .env
 .env.example
+desktop-config.env
+build-resources/
+release/
 *.log
 uploads/
 .DS_Store
