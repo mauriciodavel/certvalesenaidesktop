@@ -1,6 +1,11 @@
 export type ExportValue = string | number | null | undefined;
 export type ExportRow = Record<string, ExportValue>;
 export type ExportFormat = 'csv' | 'xlsx' | 'pdf';
+export type PdfChart = { element: HTMLElement; title: string };
+
+export function pdfPagePlan(chartCount: number) {
+  return [...Array.from({ length: chartCount }, (_, index) => `chart-${index + 1}`), 'data'];
+}
 
 const text = (value: ExportValue) => value === null || value === undefined ? '' : String(value);
 const csvCell = (value: ExportValue) => `"${text(value).replace(/"/g, '""')}"`;
@@ -22,7 +27,7 @@ function download(blob: Blob, filename: string) {
   URL.revokeObjectURL(url);
 }
 
-export async function exportRows(format: ExportFormat, rows: ExportRow[], title: string, filename: string) {
+export async function exportRows(format: ExportFormat, rows: ExportRow[], title: string, filename: string, pdfCharts: PdfChart[] = []) {
   if (!rows.length) throw new Error('Não há registros para exportar com os filtros aplicados.');
   const headers = Object.keys(rows[0]);
   if (format === 'csv') {
@@ -46,8 +51,28 @@ export async function exportRows(format: ExportFormat, rows: ExportRow[], title:
     download(new Blob([new Uint8Array(buffer)], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }), `${filename}.xlsx`);
     return;
   }
-  const [{ jsPDF }, { default: autoTable }] = await Promise.all([import('jspdf'), import('jspdf-autotable')]);
+  const [{ jsPDF }, { default: autoTable }, { default: html2canvas }] = await Promise.all([import('jspdf'), import('jspdf-autotable'), import('html2canvas')]);
   const document = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+  for (let index = 0; index < pdfCharts.length; index += 1) {
+    if (index > 0) document.addPage('a4', 'landscape');
+    const chart = pdfCharts[index];
+    const canvas = await html2canvas(chart.element, {
+      backgroundColor: '#ffffff',
+      scale: Math.min(2, window.devicePixelRatio || 1),
+      useCORS: true,
+      logging: false,
+    });
+    const maxWidth = 281;
+    const maxHeight = 181;
+    const ratio = Math.min(maxWidth / canvas.width, maxHeight / canvas.height);
+    const width = canvas.width * ratio;
+    const height = canvas.height * ratio;
+    document.setFontSize(13);
+    document.setTextColor(7, 46, 97);
+    document.text(chart.title, 10, 11);
+    document.addImage(canvas.toDataURL('image/jpeg', 0.92), 'JPEG', 10 + (maxWidth - width) / 2, 17, width, height, undefined, 'FAST');
+  }
+  if (pdfCharts.length) document.addPage('a4', 'landscape');
   document.setFontSize(15);
   document.setTextColor(7, 46, 97);
   document.text(title, 10, 11);

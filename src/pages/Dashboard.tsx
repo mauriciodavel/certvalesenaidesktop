@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Award,
   ArrowUpDown,
@@ -264,6 +264,7 @@ export default function Dashboard({
     [absentModal, setAbsentModal] = useState(false),
     [exporting, setExporting] = useState<ExportFormat | null>(null),
     [exportError, setExportError] = useState("");
+  const dashboardRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     api<DashboardData>("/dashboard")
       .then(setData)
@@ -442,7 +443,13 @@ export default function Dashboard({
     setExporting(format);
     setExportError("");
     try {
-      await exportRows(format, exportData, title, exportName);
+      const charts = format === "pdf"
+        ? Array.from(dashboardRef.current?.querySelectorAll<HTMLElement>("[data-export-chart]") ?? []).map(element => ({
+            element,
+            title: element.dataset.exportTitle || "Gráfico",
+          }))
+        : [];
+      await exportRows(format, exportData, title, exportName, charts);
     } catch (exportFailure) {
       setExportError((exportFailure as Error).message);
     } finally {
@@ -450,7 +457,7 @@ export default function Dashboard({
     }
   }
   return (
-    <div className="dashboard">
+    <div className="dashboard" ref={dashboardRef}>
       <header className="page-header">
         <div>
           <span className="eyebrow">PAINEL DE CERTIFICAÇÃO</span>
@@ -782,7 +789,7 @@ export default function Dashboard({
           </>
         )}
       </section>
-      <section className="chart-grid">
+      <section className="chart-grid" data-export-chart data-export-title="Indicadores por objeto e distribuição de resultados">
         <div className="panel wide">
           <div className="panel-title">
             <div>
@@ -894,7 +901,7 @@ export default function Dashboard({
       </section>
       {isGap && (
         <div className="gap-analysis-grid">
-          <section className="panel gap-panel">
+          <section className="panel gap-panel" data-export-chart data-export-title="Análise de GAP por objeto">
             <div className="panel-title">
               <div>
                 <h3>Análise de GAP por objeto</h3>
@@ -1163,7 +1170,7 @@ function ParticipantRanking({
   );
   const width = Math.max(1100, ranked.length * 62);
   return (
-    <section className="panel ranking-panel">
+    <section className="panel ranking-panel" data-export-chart data-export-title="Notas por participante">
       <div className="panel-title">
         <div>
           <h3>Notas por participante</h3>
