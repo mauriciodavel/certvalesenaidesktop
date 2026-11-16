@@ -1,7 +1,7 @@
 {
   "name": "certifica-vale-desktop",
   "productName": "Certifica Vale",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "private": true,
   "type": "module",
   "main": "electron/main.cjs",
@@ -13,9 +13,9 @@
     "start": "node dist-server/index.js",
     "typecheck": "tsc --noEmit && tsc -p tsconfig.server.json --noEmit",
     "db:init": "tsx server/scripts/init-db.ts",
-    "test": "vitest run"
-    ,"desktop:dev": "npm run build && electron ."
-    ,"desktop:dist": "node scripts/prepare-desktop-config.cjs && npm run build && electron-builder --win nsis"
+    "test": "vitest run",
+    "desktop:dev": "npm run build && electron .",
+    "desktop:dist": "node scripts/prepare-desktop-config.cjs && npm run build && electron-builder --win nsis"
   },
   "dependencies": {
     "@vitejs/plugin-react": "latest",

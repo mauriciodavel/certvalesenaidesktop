@@ -78,6 +78,6 @@ app.post('/api/uploads/:id/commit',authenticate,requirePasswordChanged,requireAd
     const c=comparison.counts;await conn.execute('INSERT INTO update_logs(dataset_type,filename,checksum,added_count,changed_count,removed_count,unchanged_count,total_count,status,performed_by) VALUES(?,?,?,?,?,?,?,?,\'success\',?)',[item.dataset_type,item.filename,item.checksum,c.added,c.changed,c.removed,c.unchanged,c.total,req.user!.id]);await conn.execute('DELETE FROM import_staging WHERE id=?',[item.id]);});res.json({ok:true});
 }));
 
-const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'../dist'); if(env.NODE_ENV==='production'){app.use(express.static(root,{maxAge:'1y',immutable:true,index:false}));app.get('*',(_req,res)=>res.sendFile(path.join(root,'index.html')));}
+const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'../dist'); if(env.NODE_ENV==='production'){app.use(express.static(root,{maxAge:'1y',immutable:true,index:false}));app.get('/{*splat}',(_req,res)=>res.sendFile(path.join(root,'index.html')));}
 app.use((err:unknown,_req:express.Request,res:express.Response,_next:express.NextFunction)=>{console.error(err);if(err instanceof z.ZodError)return res.status(400).json({error:'Dados inválidos.',details:err.issues});if(err instanceof multer.MulterError)return res.status(400).json({error:err.code==='LIMIT_FILE_SIZE'?'A planilha excede 15 MB.':'Falha no upload.'});res.status(500).json({error:err instanceof Error?err.message:'Erro interno.'});});
 app.listen(env.PORT,()=>console.log(`CertVale API em http://localhost:${env.PORT}`));
