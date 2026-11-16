@@ -6,6 +6,7 @@ import "./styles.css";
 import "./chart.css";
 import "./overrides.css";
 import "./desktop.css";
+import "./export.css";
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
     <BrowserRouter>

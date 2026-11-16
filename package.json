@@ -27,6 +27,8 @@
     "express-rate-limit": "latest",
     "helmet": "latest",
     "jsonwebtoken": "latest",
+    "jspdf": "^4.2.1",
+    "jspdf-autotable": "^5.0.9",
     "lucide-react": "latest",
     "multer": "latest",
     "mysql2": "latest",

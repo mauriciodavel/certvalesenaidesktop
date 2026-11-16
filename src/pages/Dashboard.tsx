@@ -4,6 +4,9 @@ import {
   ArrowUpDown,
   BookOpen,
   CheckCircle2,
+  Download,
+  FileSpreadsheet,
+  FileText,
   Filter,
   HardHat,
   RotateCcw,
@@ -28,6 +31,7 @@ import {
   YAxis,
 } from "recharts";
 import { api } from "../api";
+import { exportRows, type ExportFormat, type ExportRow } from "../export";
 import type { DashboardData, RecordItem } from "../types";
 const fmt = (n: number) => `${n.toFixed(1).replace(".", ",")}%`;
 const isApproved = (v: string | null | undefined) =>
@@ -156,6 +160,42 @@ const initial: Filters = {
   turno: "",
   prova: "",
 };
+const recordExportRow = (record: RecordItem): ExportRow => ({
+  "Matrícula": record.matricula,
+  "Nome": record.nome,
+  "Gênero": record.genero,
+  "Idade": record.idade === null ? null : Math.round(record.idade),
+  "Cargo": record.cargo,
+  "Líder": record.lider,
+  "Gerência": record.gerencia,
+  "Coordenação": record.coordenacao,
+  "Turno": record.turno,
+  "Prova": record.prova,
+  "Data de aplicação": record.dataAplicacao,
+  "Nota (%)": record.nota,
+  "Resultado": record.resultado,
+  "Admissão": record.admissao,
+  "Tempo": record.tempo,
+  "Situação": record.situacao,
+  "Aplicador": record.aplicador,
+  ...Object.fromEntries(Array.from({ length: 11 }, (_, index) => [`O${index + 1} (%)`, record.objects[`O${index + 1}`]])),
+});
+const gapExportRow = (candidate: GapCandidate): ExportRow => ({
+  "Matrícula": candidate.matricula,
+  "Nome": candidate.nome,
+  "Gênero": candidate.genero,
+  "Idade": candidate.idade === null ? null : Math.round(candidate.idade),
+  "Cargo": candidate.cargo,
+  "Líder": candidate.lider,
+  "Gerência": candidate.gerencia,
+  "Turno": candidate.turno,
+  "Prova teórica": candidate.provaT,
+  "Nota teórica (%)": candidate.teorica,
+  "Prova prática": candidate.provaP,
+  "Nota prática (%)": candidate.pratica,
+  "GAP (p.p.)": candidate.gap,
+  "Status": candidate.status,
+});
 const Card = ({
   icon,
   title,
@@ -221,7 +261,9 @@ export default function Dashboard({
     [selectedParticipant, setSelectedParticipant] = useState<string | null>(
       null,
     ),
-    [absentModal, setAbsentModal] = useState(false);
+    [absentModal, setAbsentModal] = useState(false),
+    [exporting, setExporting] = useState<ExportFormat | null>(null),
+    [exportError, setExportError] = useState("");
   useEffect(() => {
     api<DashboardData>("/dashboard")
       .then(setData)
@@ -392,6 +434,21 @@ export default function Dashboard({
         : mode === "pratico"
           ? "Desempenho prático"
           : "Desempenho por objeto";
+  const exportData = isGap
+      ? calc.candidates.map(gapExportRow)
+      : filteredBase.map(recordExportRow),
+    exportName = `certifica-vale-${mode}-${new Date().toISOString().slice(0, 10)}`;
+  async function handleExport(format: ExportFormat) {
+    setExporting(format);
+    setExportError("");
+    try {
+      await exportRows(format, exportData, title, exportName);
+    } catch (exportFailure) {
+      setExportError((exportFailure as Error).message);
+    } finally {
+      setExporting(null);
+    }
+  }
   return (
     <div className="dashboard">
       <header className="page-header">
@@ -404,14 +461,23 @@ export default function Dashboard({
               : "Visão consolidada dos resultados e objetos de conhecimento"}
           </p>
         </div>
-        <button
-          className={`filter-toggle ${active ? "active" : ""}`}
-          onClick={() => setOpen(!open)}
-        >
-          <Filter />
-          Filtros{active > 0 && <b>{active}</b>}
-        </button>
+        <div className="page-actions">
+          <div className="export-actions" aria-label="Exportar dados filtrados">
+            <span><Download />Exportar</span>
+            <button onClick={() => handleExport("csv")} disabled={Boolean(exporting) || !exportData.length}>CSV</button>
+            <button onClick={() => handleExport("xlsx")} disabled={Boolean(exporting) || !exportData.length}><FileSpreadsheet />Excel</button>
+            <button onClick={() => handleExport("pdf")} disabled={Boolean(exporting) || !exportData.length}><FileText />PDF</button>
+          </div>
+          <button
+            className={`filter-toggle ${active ? "active" : ""}`}
+            onClick={() => setOpen(!open)}
+          >
+            <Filter />
+            Filtros{active > 0 && <b>{active}</b>}
+          </button>
+        </div>
       </header>
+      {exportError && <div className="alert error export-error">{exportError}</div>}
       {open && (
         <section className="filter-panel panel">
           <div className="filter-panel-head">
